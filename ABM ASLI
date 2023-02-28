@@ -1,0 +1,1417 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Diagnostics;
+using System.IO;
+
+namespace Adam_Bashforth_Method_with_Adaptive_Step_size_and_Lagrange_Interpolation_v1
+{
+    class Program
+    {
+        //ODE
+        static double FunctionODE(double t, double y)
+        {
+            //Where: t = t[i]    ;   y = y[i] 
+
+            //double ResultFunctionODE = -(Math.Pow(t, 2d) / y);                      //ODE 1: dy/dt + (t^2 / y) = 0 ; y(0) = - 4
+
+            double ResultFunctionODE = Math.Cos(2d * t) + Math.Sin(3d * t);       //ODE 2: dy/dt = cos 2t + sin 3t ; y(0) = 1
+
+            //double ResultFunctionODE = y - Math.Pow(t, 2) + 1;                    //ODE 3: dy/dt = y - t^2 + 1; y(0) = 0.5
+            return ResultFunctionODE;
+        }
+        //ODE Analytical Solution 
+        static double AnalyticalSolutionODE(double t)
+        {
+            //Where: t = t[i] 
+
+            //double ResultAnalyticalSolutionODE = -(Math.Sqrt(16d - ((2d / 3d) * Math.Pow(t, 3d))));                               //ODE 1 yAS
+
+            double ResultAnalyticalSolutionODE = (1d / 2d) * Math.Sin(2d * t) - (1d / 3d) * Math.Cos(3d * t) + (4d / 3d);       //ODE 2 yAS
+
+            //double ResultAnalyticalSolutionODE = Math.Pow((t + 1), 2d) - 0.5d * Math.Exp(t);                                    //ODE 3 yAS
+
+            return ResultAnalyticalSolutionODE;
+        }
+        //Function axpy
+        static double Functionaxpy(double y, double f, double h)
+        {
+            double Resultaxpy = y + f * h;
+            return Resultaxpy;
+        }
+        //Adam-Bashforth-Method 1 Step                           r = 1   y[j] = y[i-j] + h * (f[j-1])
+        static double FunctionAdamBashforth1(double y1, double f1, double h)
+        {
+            //Where: y[j-1] = y1 ; f[j-1] = f1 
+            double ResultFunctionAdamBashforth1 = (y1 + h * f1); ;
+            return ResultFunctionAdamBashforth1;
+        }
+        //Adam-Bashforth-Method 2 Step                           r = 2   y[j] = y[i-j] + (1 / 2) * h * (3 * f[j-1]-f[j-2])
+        static double FunctionAdamBashforth2(double y1, double f1, double f2, double h)
+        {
+            //Where: y[j-1] = y1 ; f[j-1] = f1 ; f[j-2] = f2
+            double ResultFunctionAdamBashforth2 = (y1 + (1d / 2d) * h * (3d * f1 - f2));
+            return ResultFunctionAdamBashforth2;
+        }
+        //Adam-Bashforth-Method 3 Step                           r = 3   y[j] = y[j-1] + (1 / 12) * h * (23 * f[j-1] - 16 * f[j-2] + 5 * f[j-3])
+        static double FunctionAdamBashforth3(double y1, double f1, double f2, double f3, double h)
+        {
+            //Where: y[j-1] = y1 ; f[j-1] = f1 ; f[j-2] = f2 ; f[j-3] = f3
+            double ResultFunctionAdamBashforth3 = y1 + (1d / 12d) * h * (23d * f1 - 16d * f2 + 5d * f3);
+            return ResultFunctionAdamBashforth3;
+        }
+        //Adam-Bashforth-Method 4 Step                            r = 4   y[j] = y[j-1]  + (1 / 24) * h * (55 * f[j-1] - 59 * f[j-2] + 37 * f[j-3] - 9 * f[j-4])
+        static double FunctionAdamBashforth4(double y1, double f1, double f2, double f3, double f4, double h)
+        {
+            //Where: y[j-1] = y1 ; f[j-1] = f1 ; f[j-2] = f2 ; f[j-3] = f3 ; f[j-4] = f4
+            double ResultFunctionAdamBashforth4 = y1 + (1d / 24d) * h * (55d * f1 - 59d * f2 + 37d * f3 - 9d * f4);
+            return ResultFunctionAdamBashforth4;
+        }
+        //Adam-Bashforth-Method 5 Step                            r = 5   y[j] = y[j-1]  + (1 / 720) * h * (1901 * f[j-1] - 2774 * f[j-2] + 2616 * f[j-3] - 1274 * f[j-4] + 251 * f[f-5])
+        static double FunctionAdamBashforth5(double y1, double f1, double f2, double f3, double f4, double f5, double h)
+        {
+            //Where: y[j-1] = y1 ; f[j-1] = f1 ; f[j-2] = f2 ; f[j-3] = f3 ; f[j-4] = f4 ; f[j-5] = f5
+            double ResultFunctionAdamBashforth5 = y1 + (1d / 720d) * h * (1901d * f1 - 2774d * f2 + 2616d * f3 - 1274d * f4 + 251d * f5);
+            return ResultFunctionAdamBashforth5;
+        }
+        static double FunctionAdamMulton1(double y1, double fAB0, double f1, double h)
+        {
+            //Where: y[j-1] = y1 ; f[j] = fAB0 ; f[j-1] = f1 
+            double ResultFunctionAdamMulton1 = y1 + (1d / 2d) * h * (fAB0 + f1);
+            return ResultFunctionAdamMulton1;
+        }
+        //Adam-Multon-Method 2 Steps
+        static double FunctionAdamMulton2(double y1, double fAB0, double f1, double f2, double h)
+        {
+            //Where: y[j-1] = y1 ; f[j] = fAB0 ; f[j-1] = f1 ; f[j-2] = f2 
+            double ResultFunctionAdamMulton2 = y1 + (1d / 12d) * h * (5d * fAB0 + 8d * f1 - f2);
+            return ResultFunctionAdamMulton2;
+        }
+        //Adam-Multon-Method 3 Steps
+        static double FunctionAdamMulton3(double y1, double fAB0, double f1, double f2, double f3, double h)
+        {
+            //Where: y[j-1] = y1 ; f[j] = fAB0 ; f[j-1] = f1 ; f[j-2] = f2 ; f[j-3] = f3  
+            double ResultFunctionAdamMulton3 = y1 + (1d / 24d) * h * (9d * fAB0 + 19d * f1 - 5d * f2 + f3);
+            return ResultFunctionAdamMulton3;
+        }
+        //Adam-Multon-Method 4 Step
+        static double FunctionAdamMulton4(double y1, double fAB0, double f1, double f2, double f3, double f4, double h)
+        {
+            //Where: y[j-1] = y1 ; f[j] = fAB0 ; f[j-1] = f1 ; f[j-2] = f2 ; f[j-3] = f3 ; f[j-4] = f4 
+            double ResultFunctionAdamMulton4 = y1 + (1d / 720d) * h * (251d * fAB0 + 646d * f1 - 264d * f2 + 106d * f3 - 19d * f4);
+            return ResultFunctionAdamMulton4;
+        }
+        //Runge-Kutta Method 2. Order 
+        static double FunctionRungeKutta2Order(double t, double y, double h)
+        {
+            //Where: t = t[i-1] ; y = y[i-1] 
+            //Butcher Schema 
+            double[] A = { 0, 1d / 2d };       //   0  |  0     0      //  C1 |  0   0
+            double[] B = { 0, 1d };            //  1/2 | 1/2    0      //  C2 | A21  0
+            double[] C = { 0, 1d / 2d };       //  ____|_________      //  ___|_________      
+            double[] K = { 0, 0 };             //      |  0     1      //     | B1   B2   
+
+            //K[0] = f[x[i], y[i]]
+            K[0] = FunctionODE(t, y);
+            //K[1] = f[x[i] + C2 * h, y[i] + h * A21 * K0]
+            K[1] = FunctionODE(t + C[1] * h, y + h * (A[1] * K[0]));
+
+            //Runge-Kutta-2         y[i] = y[i - 1] + h * K[1] 
+            double ResultFunctionRungeKutta2Order = y + h * K[1];
+            return ResultFunctionRungeKutta2Order;
+        }
+        //Runge-Kutta Method 3. Order
+        static double FunctionRungeKutta3Order(double t, double y, double h)
+        {
+            //Where: t = t[i-1] ; y = y[i-1] 
+            //Butcher Schema 
+            double[] A = { 0, 1d / 2d, -1d, 2d };                                 //   0  |  0     0     0        //  C1 | A11     0       0
+            double[] B = { 1d / 6d, 2d / 3d, 1d / 6d };                          //  1/2 | 1/2    0     0        //  C2 | A21     0       0
+            double[] C = { 0, 1d / 2d, 1d };                                     //   1  | -1     2     0        //  C3 | A31    A32      0 
+            double[] K = { 0, 0, 0 };                                            //  ____|_________________      //  ___|___________________
+                                                                                 //      | 1/6   2/3   1/6       //     | B1      B2      B3
+
+
+            //K[0] = f[x[i], y[i]]
+            K[0] = FunctionODE(t, y);
+            //K[1] = f[x[i] + C2 * h, y[i] + h * A21 * K0]
+            K[1] = FunctionODE(t + C[1] * h, y + h * (A[1] * K[0]));
+            //K[2] = f[x[i] + C3 * h, y[i] + h * ((A31 * K0) + (A32 * K1))]
+            K[2] = FunctionODE(t + C[2] * h, y + h * ((A[2] * K[0]) + (A[3] * K[1])));
+
+            //Runge-Kutta-3         y[i] = y[i - 1] + 1 /6 * h * (K[0] + 4 * K[1] + K[2])
+            double ResultFunctionRungeKutta3Order = y + h * (B[0] * K[0] + B[1] * K[1] + B[2] * K[2]);
+            return ResultFunctionRungeKutta3Order;
+        }
+        //Runge-Kutta Method 4. Order 
+        static double FunctionRungeKutta4Order(double t, double y, double h)
+        {
+            //Where: t = t[i-1] ; y = y[i-1] 
+            //Butcher Schema 
+            double[] A = { 0, 1d / 2d, 0, 1d / 2d, 0, 0, 1 };       //   0  | 0                                 //  C1 | A11
+            double[] B = { 1d / 6d, 1d / 3d, 1d / 3d, 1d / 6d };    //  1/2 | 1/2                               //  C2 | A21     0
+            double[] C = { 0, 1d / 2d, 1d / 2d, 1d };               //  1/2 | 0     1/2                         //  C3 | A31    A32      0
+            double[] K = { 0, 0, 0, 0 };                            //   1  | 0      0       1                  //  C4 | A41    A42     A43     0
+                                                                    //  ____|___________________________        // ----|---------------------------
+                                                                    //      | 1/6   1/3     1/3     1/6         //     | B1     B2      B3      B4
+
+            //K[0] = f[x[i], y[i]]
+            K[0] = FunctionODE(t, y);
+            //K[1] = f[x[i] + C2 * h, y[i] + h * A21 * K0]
+            K[1] = FunctionODE(t + C[1] * h, y + h * (A[1] * K[0]));
+            //K[2] = f[x[i] + C3 * h, y[i] + h * ((A31 * K0) + (A32 * K1))]
+            K[2] = FunctionODE(t + C[2] * h, y + h * ((A[2] * K[0]) + (A[3] * K[1])));
+            //K[3] = f[x[i] + C4 * h, y[i] + h * ((A41 * K0) + (A42 * K1) + (A43 * K2))]
+            K[3] = FunctionODE(t + C[3] * h, y + h * ((A[4] * K[0]) + (A[5] * K[1]) + (A[6] * K[2])));
+
+            //Console.WriteLine(K[0]);
+            //Console.WriteLine(K[1]);
+            //Console.WriteLine(K[2]);
+            //Console.WriteLine(K[3]);
+            //Runge-Kutta-4         y[i] = y[i - 1] + (1 / 6) * h * (K[0] + 2 * K[1] + 2 * K[2] + K[3])
+            double ResultFunctionRungeKutta4Order = y + (1d / 6d) * h * (K[0] + 2d * K[1] + 2d * K[2] + K[3]);
+            return ResultFunctionRungeKutta4Order;
+        }
+        // Lagrange Interpolation with 2 points (1st Order)
+        static double FunctionLagrangeInterpolation1(double f1, double f2, double t1, double t2, double tint)
+        {
+            //Where: f[j-1] = f1 ; f[j-2] = f2 ; t[j-1] = t1 ; t[j-2] = t2
+            double ResultFunctionLagrangeInterpolation1 = (f1 * ((tint - t2) / (t1 - t2)))
+                                                        + (f2 * ((tint - t1) / (t2 - t1)));
+            return ResultFunctionLagrangeInterpolation1;
+        }
+        // Lagrange Interpolation with 3 points (2nd Order)
+        static double FunctionLagrangeInterpolation2(double f1, double f2, double f3, double t1, double t2, double t3, double tint)
+        {
+            //Where: f[j-1] = f1 ; f[j-2] = f2 ; f[j-3] = f3 ; t[j-1] = t1 ; t[j-2] = t2 ; t[j-3] = t3
+            double ResultFunctionLagrangeInterpolation2 = (f1 * (((tint - t2) * (tint - t3)) / ((t1 - t2) * (t1 - t3))))
+                                                        + (f2 * (((tint - t1) * (tint - t3)) / ((t2 - t1) * (t2 - t3))))
+                                                        + (f3 * (((tint - t1) * (tint - t2)) / ((t3 - t1) * (t3 - t2))));
+            return ResultFunctionLagrangeInterpolation2;
+        }
+        // Lagrange Interpolation with 4 points (3rd Order)
+        static double FunctionLagrangeInterpolation3(double f1, double f2, double f3, double f4, double t1, double t2, double t3, double t4, double tint)
+        {
+            //Where: f[j-1] = f1 ; f[j-2] = f2 ; f[j-3] = f3 ; f[j-4] = f4 ; t[j-1] = t1 ; t[j-2] = t2 ; t[j-3] = t3 ; t[j-4] = t4
+            double ResultFunctionLagrangeInterpolation3 = (f1 * (((tint - t2) * (tint - t3) * (tint - t4)) / ((t1 - t2) * (t1 - t3) * (t1 - t4))))
+                                                        + (f2 * (((tint - t1) * (tint - t3) * (tint - t4)) / ((t2 - t1) * (t2 - t3) * (t2 - t4))))
+                                                        + (f3 * (((tint - t1) * (tint - t2) * (tint - t4)) / ((t3 - t1) * (t3 - t2) * (t3 - t4))))
+                                                        + (f4 * (((tint - t1) * (tint - t2) * (tint - t3)) / ((t4 - t1) * (t4 - t2) * (t4 - t3))));
+            return ResultFunctionLagrangeInterpolation3;
+        }
+        // Lagrange Interpolation with 5 points (4th Order)
+        static double FunctionLagrangeInterpolation4(double f1, double f2, double f3, double f4, double f5, double t1, double t2, double t3, double t4, double t5, double tint)
+        {
+            //Where: f[j-1] = f1 ; f[j-2] = f2 ; f[j-3] = f3 ; f[j-4] = f4 ; f[j-5] = f5 ; t[j-1] = t1 ; t[j-2] = t2 ; t[j-3] = t3 ; t[j-4] = t4 ; t[j-5] = t5
+            double ResultFunctionLagrangeInterpolation4 = (f1 * (((tint - t2) * (tint - t3) * (tint - t4) * (tint - t5)) / ((t1 - t2) * (t1 - t3) * (t1 - t4) * (t1 - t5))))
+                                                        + (f2 * (((tint - t1) * (tint - t3) * (tint - t4) * (tint - t5)) / ((t2 - t1) * (t2 - t3) * (t2 - t4) * (t2 - t5))))
+                                                        + (f3 * (((tint - t1) * (tint - t2) * (tint - t4) * (tint - t5)) / ((t3 - t1) * (t3 - t2) * (t3 - t4) * (t3 - t5))))
+                                                        + (f4 * (((tint - t1) * (tint - t2) * (tint - t3) * (tint - t5)) / ((t4 - t1) * (t4 - t2) * (t4 - t3) * (t4 - t5))))
+                                                        + (f5 * (((tint - t1) * (tint - t2) * (tint - t3) * (tint - t4)) / ((t5 - t1) * (t5 - t2) * (t5 - t3) * (t5 - t4))));
+            return ResultFunctionLagrangeInterpolation4;
+        }
+        // Lagrange Interpolation with 6 points (5th Order)
+        static double FunctionLagrangeInterpolation5(double f1, double f2, double f3, double f4, double f5, double f6, double t1, double t2, double t3, double t4, double t5, double t6, double tint)
+        {
+            //Where: f[j-1] = f1 ; f[j-2] = f2 ; f[j-3] = f3 ; f[j-4] = f4 ; f[j-5] = f5 ; t[j-1] = t1 ; t[j-2] = t2 ; t[j-3] = t3 ; t[j-4] = t4 ; t[j-5] = t5 ; t[j-6] = t6
+            double ResultFunctionLagrangeInterpolation4 = (f1 * (((tint - t2) * (tint - t3) * (tint - t4) * (tint - t5) * (tint - t6)) / ((t1 - t2) * (t1 - t3) * (t1 - t4) * (t1 - t5) * (t1 - t6))))
+                                                        + (f2 * (((tint - t1) * (tint - t3) * (tint - t4) * (tint - t5) * (tint - t6)) / ((t2 - t1) * (t2 - t3) * (t2 - t4) * (t2 - t5) * (t2 - t6))))
+                                                        + (f3 * (((tint - t1) * (tint - t2) * (tint - t4) * (tint - t5) * (tint - t6)) / ((t3 - t1) * (t3 - t2) * (t3 - t4) * (t3 - t5) * (t3 - t6))))
+                                                        + (f4 * (((tint - t1) * (tint - t2) * (tint - t3) * (tint - t5) * (tint - t6)) / ((t4 - t1) * (t4 - t2) * (t4 - t3) * (t4 - t5) * (t4 - t6))))
+                                                        + (f5 * (((tint - t1) * (tint - t2) * (tint - t3) * (tint - t4) * (tint - t6)) / ((t5 - t1) * (t5 - t2) * (t5 - t3) * (t5 - t4) * (t5 - t6))))
+                                                        + (f6 * (((tint - t1) * (tint - t2) * (tint - t3) * (tint - t4) * (tint - t5)) / ((t6 - t1) * (t6 - t2) * (t6 - t3) * (t6 - t4) * (t6 - t5))));
+            return ResultFunctionLagrangeInterpolation4;
+        }
+        static double FunctionPlots(double j, double t, double yAS, double yAB, double h, double f)
+        {
+            double ResultFunctionPlots = j;
+            Console.WriteLine("The Step j is: " + j);
+            Console.WriteLine("The Step Size h is: " + h);
+            Console.WriteLine("The Value of t is: " + t);
+            Console.WriteLine("The Value for yAS(" + t + ") is: " + yAS);
+            Console.WriteLine("The Value for yAB(" + t + ") is: " + yAB);
+            Console.WriteLine("The Value for fAB(" + t + ") is: " + f);
+            Console.WriteLine();
+            return ResultFunctionPlots;
+        }
+
+        static void Main(string[] args)
+        {
+            Stopwatch stopWatch = new Stopwatch();
+            stopWatch.Start();
+
+            //Initialization 
+            List<double> t = new List<double>();                //List (Vector) for the x-axis
+            List<double> yAS = new List<double>();              //List (Vector) for the analytical solution of y using Adam-Bashforth Method
+            List<double> yRK = new List<double>();             //List (Vector) for the aproximated solution of y using RK4 Method
+            List<double> yAB = new List<double>();              //List (Vector) for the aproximated solution of y using Adam-Bashforth Method 
+            List<double> yAM = new List<double>();              //List (Vector) for the aproximated solution of y using Adam-Multon Method 
+            List<double> fAB = new List<double>();              //List (Vector) for function f(x,y) ==> dy/dx
+            List<double> AbsErr = new List<double>();           //List (Vector) for the Absolute Error based on the Analytical Solution AbsErr = |yAS - yAB|
+            List<double> LocErr = new List<double>();           //List (Vector) for the Local Error based on the Approximated Solutions 
+            List<double> GlobErr = new List<double>();          //List (Vector) for theGlobal Error based on the Approximated Solutions 
+            List<double> tol = new List<double>();              //List (Vector) for the Tolerance
+            List<double> dt = new List<double>();               //List (Vector) for the Time Step dt = h
+            double yABp = 0d;
+            double yAMc = 0d;
+            int j = 0;                                          //Step Counter 
+            int i = 0;
+            bool exit = false;
+
+            //Initial Conditions of the IVP
+            t.Add(0);                                           //Initial value for t(0)        [0 ; 0]
+            double tf = 10.1d;                                     //Final value for t(n)          [2; Math.PI ; 2]                       
+            double y0 = 1d;                                    //Initial value for y        [-4 ; 1 ; 0.5]
+            yAS.Add(y0);
+            yRK.Add(y0);
+            yAB.Add(y0);
+            yAM.Add(y0);
+            fAB.Add(FunctionODE(t[0], yAB[0]));
+            AbsErr.Add(Math.Abs(yAS[0] - yAB[0]));
+            LocErr.Add(AbsErr[0]);
+            GlobErr.Add(AbsErr[0]);
+
+            //Adam-Bashforth-Method Configuration
+            int AdamBashfortOrder = 3;                          //Adam-Bashforth Order (1, 2, 3, 4,5) 
+            int RKOrder = AdamBashfortOrder;
+            int LagrangeInterpolationOrder = AdamBashfortOrder - 1;         //Lagrane Interpolation Order
+            tol.Add(1e-5d);                                   //Tolerance
+            double h = 0.001d;                                   //Step Size
+            double hmax = 0.2d;                                //Maximal Value for the Timestep h
+            double hmin = 0.0001;                               //Minimal Value for the Timestep h 
+            dt.Add(h);
+
+            //hmax = 0.02d; 
+            //hmax = 0.02d;
+            h = hmax;
+
+            int FLAG = 1;
+            int NFLAG = 1;
+            int LAST = 0;
+
+            FunctionPlots(j, t[j], yAS[j], yAB[j], h, fAB[j]);
+
+            //Get Initial Values using RK
+            
+            j = j + 1;
+
+            switch (AdamBashfortOrder)
+            {
+                case 2:
+                    i = AdamBashfortOrder; 
+                    break;
+                case 3:
+                    i = AdamBashfortOrder + 1;
+                    break;
+                case 4:
+                    i = AdamBashfortOrder + 2;
+                    break;
+            }
+
+            switch (RKOrder)
+            {
+                case 2:
+                    while (j <= i)
+                    {
+                        t.Add(t[j - 1] + h);
+                        yAS.Add(AnalyticalSolutionODE(t[j]));
+                        yRK.Add(FunctionRungeKutta2Order(t[j - 1], yRK[j - 1], h));
+                        yAB.Add(yRK[j]);
+                        yAM.Add(yRK[j]);
+                        yABp = yAB[j];
+                        yAMc = yAM[j];
+                        fAB.Add(FunctionODE(t[j], yAB[j]));
+                        AbsErr.Add(Math.Abs(yAS[j] - yAB[j]));
+                        LocErr.Add(AbsErr[j]);
+                        GlobErr.Add(AbsErr[j] / h);
+                        dt.Add(h);
+                        tol.Add(tol[j - 1]);
+
+                        FunctionPlots(j, t[j], yAS[j], yAB[j], h, fAB[j]);
+
+                        j++;
+                    }
+                    break;
+                case 3:
+                    while (j <= i)
+                    {
+                        t.Add(t[j - 1] + h);
+                        yAS.Add(AnalyticalSolutionODE(t[j]));
+                        yRK.Add(FunctionRungeKutta3Order(t[j - 1], yRK[j - 1], h));
+                        yAB.Add(yRK[j]);
+                        yAM.Add(yRK[j]);
+                        yABp = yAB[j];
+                        yAMc = yAM[j];
+                        fAB.Add(FunctionODE(t[j], yAB[j]));
+                        AbsErr.Add(Math.Abs(yAS[j] - yAB[j]));
+                        LocErr.Add(AbsErr[j]);
+                        GlobErr.Add(AbsErr[j] / h);
+                        dt.Add(h);
+                        tol.Add(tol[j - 1]);
+
+                        FunctionPlots(j, t[j], yAS[j], yAB[j], h, fAB[j]);
+
+                        j++;
+                    }
+                    break;
+                case 4:
+                    while (j <= i)
+                    {
+                        t.Add(t[j - 1] + h);
+                        yAS.Add(AnalyticalSolutionODE(t[j]));
+                        yRK.Add(FunctionRungeKutta4Order(t[j - 1], yRK[j - 1], h));
+                        yAB.Add(yRK[j]);
+                        yAM.Add(yRK[j]);
+                        yABp = yAB[j];
+                        yAMc = yAM[j];
+                        fAB.Add(FunctionODE(t[j], yAB[j]));
+                        AbsErr.Add(Math.Abs(yAS[j] - yAB[j]));
+                        LocErr.Add(AbsErr[j]);
+                        GlobErr.Add(AbsErr[j] / h);
+                        dt.Add(h);
+                        tol.Add(tol[j - 1]);
+
+                        FunctionPlots(j, t[j], yAS[j], yAB[j], h, fAB[j]);
+
+                        j++;
+                    }
+                    break;
+            }
+
+            NFLAG = 1;
+            Console.WriteLine("Pause");
+            Console.WriteLine();
+
+            j = i + 1;
+
+            //Adam-Bashforth-Method + Lagrange Interpolation
+            switch (AdamBashfortOrder)
+            {
+                //Adam-Bashforth 2nd Order
+                case 2:
+                    while (t[j - 1] <= tf)
+                    {
+                        t.Add(t[j - 1] + h);
+                        dt.Add(h);
+                        tol.Add(tol[j - 1]);
+
+                        //Calculate the Predictor using Adam-Bashforth 3. 
+                        yAS.Add(AnalyticalSolutionODE(t[j]));
+
+                        yAB.Add(FunctionAdamBashforth2(yAB[j - 1], fAB[j - 1], fAB[j - 2], h));
+                        fAB.Add(FunctionODE(t[j], yAB[j]));
+
+                        Console.WriteLine("Predictor Step");
+                        FunctionPlots(j, t[j], yAS[j], yAB[j], h, fAB[j]);
+                        Console.WriteLine();
+
+                        //Calculate the Corrector using Adam-Multon 2. 
+                        yAM.Add(FunctionAdamMulton1(yAM[j - 1], fAB[j], fAB[j - 1], h));
+                        yABp = yAB[j];
+                        yAMc = yAM[j];
+
+                        yAB[j] = yAM[j];
+                        fAB[j] = FunctionODE(t[j], yAB[j]);
+
+                        Console.WriteLine("Corrector Step");
+                        FunctionPlots(j, t[j], yAS[j], yAM[j], h, fAB[j]);
+                        Console.WriteLine();
+
+                        //Absolute Error
+                        AbsErr.Add(Math.Abs(yAS[j] - yAB[j]));
+                        
+
+                        //Local Truncation Error
+                        LocErr.Add((1d / (6d * h)) * Math.Abs(yABp - yAMc));
+                        
+                        //Global Error 
+                        GlobErr.Add(LocErr[j] / h);
+
+                        double delta = (1d / (6d * h)) * Math.Abs(yABp - yAMc);
+                        double q = 2.45d * Math.Pow(((h * tol[j - 1]) / (Math.Abs(yABp - yAMc))), (1d / 2d));
+
+                        FunctionPlots(j, t[j], yAS[j], yAB[j], h, fAB[j]);
+                        Console.WriteLine("The Absolute Error is: " + AbsErr[j]);
+                        Console.WriteLine("The Local Error is: " + LocErr[j]);
+                        Console.WriteLine("The Global Error is: " + GlobErr[j]);
+                        Console.WriteLine("The Delta Error is: " + delta);
+                        Console.WriteLine("The Value for q: " + q);
+                        Console.WriteLine();
+
+                        //Step Size Control
+
+                        //Step will be increased
+                        if (delta <= tol[j - 1])
+                        {
+                            yAB[j] = yAM[j];
+                            fAB[j] = FunctionODE(t[j], yAB[j]);
+                            t[j] = t[j];
+
+                            Console.WriteLine("Result Accepted");
+                            Console.WriteLine();
+
+                            if (NFLAG == 1)
+                            {
+                                Console.WriteLine("Previous Results also accepted");
+                                Console.WriteLine();
+                            }
+                            else
+                            {
+                                Console.WriteLine("Previous Results already accepted");
+                                Console.WriteLine();
+                            }
+
+                            if (LAST == 1)
+                            {
+                                FLAG = 0;
+                            }
+                            else
+                            {
+                                j = j + 1;
+                                NFLAG = 0;
+
+                                if (delta <= 0.1d * tol[j - 1] || t[j - 1] + h < tf)
+                                {
+                                    q = 2.45d * Math.Pow(((h * tol[j - 1]) / (Math.Abs(yABp - yAMc))), (1d / 2d));
+
+                                    if (q > 4)
+                                    {
+                                        h = 4d * h;
+                                    }
+                                    else
+                                    {
+                                        h = q * h;
+                                    }
+
+                                    if (h > hmax)
+                                    {
+                                        h = hmax;
+                                    }
+
+                                    if (t[j - 1] + 4d * h > tf)
+                                    {
+                                        h = (tf - t[j - 1]) / 4d;
+                                        LAST = 1;
+                                    }
+
+                                    //Get next values with RK4
+                                    i = j;
+                                    while (j <= i)
+                                    {
+                                        t.Add(t[j - 1] + h);
+                                        yAS.Add(AnalyticalSolutionODE(t[j]));
+
+                                        double tint2 = t[j] - (2d * h);
+                                        double fint2 = 0;
+
+                                        fint2 = FunctionLagrangeInterpolation1(fAB[j - 1], fAB[j - 2], t[j - 1], t[j - 2], tint2);
+                                        fAB[j - 2] = fint2;
+
+                                        yAB.Add(FunctionAdamBashforth2(yAB[j - 1], fAB[j - 1], fAB[j - 2], h));
+                                        fAB.Add(FunctionODE(t[j], yAB[j]));
+
+                                        yAM.Add(FunctionAdamMulton1(yAM[j - 1], fAB[j], fAB[j - 1], h));
+
+                                        yABp = yAB[j];
+                                        yAMc = yAM[j];
+
+                                        yAB[j] = yAM[j];
+                                        fAB[j] = (FunctionODE(t[j], yAB[j]));
+
+                                        AbsErr.Add(Math.Abs(yAS[j] - yAB[j]));
+                                        LocErr.Add((1d / (6d * h)) * Math.Abs(yABp - yAMc));
+                                        GlobErr.Add(LocErr[j] / h);
+                                        dt.Add(h);
+                                        tol.Add(tol[j - 1]);
+
+                                        FunctionPlots(j, t[j], yAS[j], yAB[j], h, fAB[j]);
+                                        Console.WriteLine("The Absolute Error is: " + AbsErr[j]);
+                                        Console.WriteLine("The Local Error is: " + LocErr[j]);
+                                        Console.WriteLine("The Global Error is: " + GlobErr[j]);
+                                        Console.WriteLine("The Delta Error is: " + delta);
+                                        Console.WriteLine("The Value for q: " + q);
+                                        Console.WriteLine();
+                                        Console.WriteLine();
+
+                                        j++;
+                                    }
+
+                                    j = j - 1;
+                                    NFLAG = 1;
+
+                                }
+                                else
+                                {
+                                    j = j - 1;                             
+                                }
+                            }
+                        }
+
+                        //Step will be decreased
+                        else
+                        {
+                            q = 2.45d * Math.Pow(((h * tol[j - 1]) / (Math.Abs(yABp - yAMc))), (1d / 2d));
+
+                            if (q < 0.1d)
+                            {
+                                h = 0.1d * h;
+                            }
+                            else
+                            {
+                                h = q * h;
+                            }
+
+                            if (h < hmin)
+                            {
+                                FLAG = 0;
+                                h = hmin;
+                                j = j - 1;
+
+                                //Get next values with Lagrange Interpolation
+                                i = j + 1;
+                                while (j <= i)
+                                {
+                                    t[j] = (t[j - 1] + h);
+                                    yAS[j] = (AnalyticalSolutionODE(t[j]));
+
+                                    double tint2 = t[j] - (2d * h);
+                                    double fint2 = 0;
+
+                                    fint2 = FunctionLagrangeInterpolation1(fAB[j - 1], fAB[j - 2], t[j - 1], t[j - 2], tint2);
+                                    fAB[j - 2] = fint2;
+
+                                    yAB[j] = (FunctionAdamBashforth2(yAB[j - 1], fAB[j - 1], fAB[j - 2], h));
+                                    fAB[j] = (FunctionODE(t[j], yAB[j]));
+
+
+                                    yAM[j] = (FunctionAdamMulton1(yAM[j - 1], fAB[j], fAB[j - 1], h));
+
+                                    yABp = yAB[j];
+                                    yAMc = yAM[j];
+
+                                    yAB[j] = yAM[j];
+                                    fAB[j] = (FunctionODE(t[j], yAB[j]));
+
+                                    AbsErr[j] = (Math.Abs(yAS[j] - yAB[j]));
+                                    LocErr[j] = ((1d / (6d * h)) * Math.Abs(yABp - yAMc));
+                                    GlobErr[j] = (LocErr[j] / h);
+                                    dt[j] = (h);
+                                    tol[j] = (tol[j - 1]);
+
+                                    FunctionPlots(j, t[j], yAS[j], yAB[j], h, fAB[j]);
+                                    Console.WriteLine("The Absolute Error is: " + AbsErr[j]);
+                                    Console.WriteLine("The Local Error is: " + LocErr[j]);
+                                    Console.WriteLine("The Global Error is: " + GlobErr[j]);
+                                    Console.WriteLine("The Delta Error is: " + delta);
+                                    Console.WriteLine("The Value for q: " + q);
+                                    Console.WriteLine();
+                                    Console.WriteLine();
+
+                                    j++;
+                                }
+
+                                j = j - 1;
+                                NFLAG = 1;
+
+                                Console.WriteLine("h min exceeded ");
+                                Console.WriteLine();
+                            }
+                            else
+                            {
+                                if (NFLAG == 1)
+                                {
+                                    j = j - 1;
+                                    Console.WriteLine("Previous results rejected");
+                                    Console.WriteLine("Suguested Value for h is : " + h);
+                                    Console.WriteLine();
+                                    //Console.ReadLine();
+                                }
+
+                                //Get next values with Lagrange Interpolation
+                                i = j + 1;
+                                while (j < i)
+                                {
+                                    t[j] = (t[j - 1] + h);
+                                    yAS[j] = (AnalyticalSolutionODE(t[j]));
+
+                                    double tint2 = t[j] - (2d * h);
+                                    double fint2 = 0;
+
+                                    fint2 = FunctionLagrangeInterpolation1(fAB[j - 1], fAB[j - 2], t[j - 1], t[j - 2], tint2);
+                                    fAB[j - 2] = fint2;
+
+                                    yAB[j] = (FunctionAdamBashforth2(yAB[j - 1], fAB[j - 1], fAB[j - 2], h));
+                                    fAB[j] = (FunctionODE(t[j], yAB[j]));
+
+
+                                    yAM[j] = (FunctionAdamMulton1(yAM[j - 1], fAB[j], fAB[j - 1], h));
+
+                                    yABp = yAB[j];
+                                    yAMc = yAM[j];
+
+                                    yAB[j] = yAM[j];
+                                    fAB[j] = (FunctionODE(t[j], yAB[j]));
+
+                                    AbsErr[j] = (Math.Abs(yAS[j] - yAB[j]));
+                                    LocErr[j] = ((1d / (6d * h)) * Math.Abs(yABp - yAMc));
+                                    GlobErr[j] = (LocErr[j] / h);
+                                    dt[j] = (h);
+                                    tol[j] = (tol[j - 1]);
+
+                                    FunctionPlots(j, t[j], yAS[j], yAB[j], h, fAB[j]);
+                                    Console.WriteLine("The Absolute Error is: " + AbsErr[j]);
+                                    Console.WriteLine("The Local Error is: " + LocErr[j]);
+                                    Console.WriteLine("The Global Error is: " + GlobErr[j]);
+                                    Console.WriteLine("The Delta Error is: " + delta);
+                                    Console.WriteLine("The Value for q: " + q);
+                                    Console.WriteLine();
+                                    Console.WriteLine();
+
+                                    j++;
+                                }
+
+                                NFLAG = 1;
+                                Console.WriteLine(j);
+                            }
+                        }
+
+                        FunctionPlots(j, t[j], yAS[j], yAB[j], h, fAB[j]);
+                        Console.WriteLine("The Absolute Error is: " + AbsErr[j]);
+                        Console.WriteLine("The Local Error is: " + LocErr[j]);
+                        Console.WriteLine("The Global Error is: " + GlobErr[j]);
+                        Console.WriteLine("The Delta Error is: " + delta);
+                        Console.WriteLine("The Value for q: " + q);
+                        Console.WriteLine();
+                        Console.WriteLine();
+
+                        j++;
+                    }
+                    break;
+                //Adam-Bashforth 3rd Order
+                case 3:
+                    while (t[j - 1] <= tf)
+                    {
+                        t.Add(t[j - 1] + h);
+                        dt.Add(h);
+                        tol.Add(tol[j - 1]);
+
+                        //Calculate the Predictor using Adam-Bashforth 3. 
+                        yAS.Add(AnalyticalSolutionODE(t[j]));
+                        //yRK.Add(FunctionRungeKutta3Order(t[j - 1], yRK[j - 1], h));
+                        yAB.Add(FunctionAdamBashforth3(yAB[j - 1], fAB[j - 1], fAB[j - 2], fAB[j - 3], h));
+                        fAB.Add(FunctionODE(t[j], yAB[j]));
+
+                        Console.WriteLine("Predictor Step");
+                        FunctionPlots(j, t[j], yAS[j], yAB[j], h, fAB[j]);
+                        Console.WriteLine();
+
+                        //Calculate the Corrector using Adam-Multon 2.
+                        yAM.Add(FunctionAdamMulton2(yAM[j - 1], fAB[j], fAB[j - 1], fAB[j - 2], h));
+                        yABp = yAB[j];
+                        yAMc = yAM[j];
+
+                        yAB[j] = yAM[j];
+                        fAB[j] = FunctionODE(t[j], yAB[j]);
+
+                        Console.WriteLine("Corrector Step");
+                        FunctionPlots(j, t[j], yAS[j], yAM[j], h, fAB[j]);
+                        Console.WriteLine();
+
+                        //Absolute Error
+                        AbsErr.Add(Math.Abs(yAS[j] - yAB[j]));
+
+                        //Local Truncation Error
+                        LocErr.Add((1d / (10d * h)) * Math.Abs(yABp - yAMc));
+
+                        //Global Error 
+                        GlobErr.Add(LocErr[j] / h);
+
+                        double delta = (1d / (10d * h)) * Math.Abs(yABp - yAMc);
+                        double q = 2.15d * Math.Pow(((h * tol[j - 1]) / (Math.Abs(yABp - yAMc))), (1d / 3d));
+
+                        FunctionPlots(j, t[j], yAS[j], yAB[j], h, fAB[j]);
+                        Console.WriteLine("The Absolute Error is: " + AbsErr[j]);
+                        Console.WriteLine("The Local Error is: " + LocErr[j]);
+                        Console.WriteLine("The Global Error is: " + GlobErr[j]);
+                        Console.WriteLine("The Delta Error is: " + delta);
+                        Console.WriteLine("The Value for q: " + q);
+                        Console.WriteLine();
+
+                        //Step Size Control
+
+                        //Step will be increased
+                        if (delta <= tol[j - 1])
+                        {
+                            yAB[j] = yAM[j];
+                            fAB[j] = FunctionODE(t[j], yAB[j]);
+                            t[j] = t[j];
+
+                            Console.WriteLine("Result Accepted");
+                            Console.WriteLine();
+
+                            if (NFLAG == 1)
+                            {
+                                Console.WriteLine("Previous Results also accepted");
+                                Console.WriteLine();
+                            }
+                            else
+                            {
+                                Console.WriteLine("Previous Results already accepted");
+                                Console.WriteLine();
+                            }
+
+                            if (LAST == 1)
+                            {
+                                FLAG = 0;
+                            }
+                            else
+                            {
+                                j = j + 1;
+                                NFLAG = 0;
+
+                                if (delta <= 0.1d * tol[j - 1] || t[j - 1] + h < tf)
+                                {
+                                    q = 2.15d * Math.Pow(((h * tol[j - 1]) / (Math.Abs(yABp - yAMc))), (1d / 3d));
+
+                                    if (q > 4)
+                                    {
+                                        h = 4d * h;
+                                    }
+                                    else
+                                    {
+                                        h = q * h;
+                                    }
+
+                                    if (h > hmax)
+                                    {
+                                        h = hmax;
+                                    }
+
+                                    if (t[j - 1] + 4d * h > tf)
+                                    {
+                                        h = (tf - t[j - 1]) / 4d;
+                                        LAST = 1;
+                                    }
+
+                                    //Get next values with Lagrange Interpolation
+                                    i = j + 1;
+                                    while (j <= i)
+                                    {
+                                        t.Add(t[j - 1] + h);
+                                        yAS.Add(AnalyticalSolutionODE(t[j]));
+
+                                        double tint2 = t[j] - (2d * h);
+                                        double tint3 = t[j] - (3d * h);
+
+                                        double fint2 = FunctionLagrangeInterpolation2(fAB[j - 1], fAB[j - 2], fAB[j - 3], t[j - 1], t[j - 2], t[j - 3], tint2);
+                                        double fint3 = FunctionLagrangeInterpolation2(fAB[j - 1], fAB[j - 2], fAB[j - 3], t[j - 1], t[j - 2], t[j - 3], tint3);
+
+                                        fAB[j - 2] = fint2;
+                                        fAB[j - 3] = fint3;
+
+                                        yAB.Add(FunctionAdamBashforth3(yAB[j - 1], fAB[j - 1], fAB[j - 2], fAB[j - 3], h));
+                                        fAB.Add(FunctionODE(t[j], yAB[j]));
+
+                                        yAM.Add(FunctionAdamMulton2(yAM[j - 1], fAB[j], fAB[j - 1], fAB[j - 2], h));
+                                        yABp = yAB[j];
+                                        yAMc = yAM[j];
+
+                                        yAB[j] = yAM[j];
+                                        fAB[j] = FunctionODE(t[j], yAB[j]);
+
+                                        AbsErr.Add(Math.Abs(yAS[j] - yAB[j]));
+                                        LocErr.Add((1d / (10d * h)) * Math.Abs(yABp - yAMc));
+                                        GlobErr.Add(LocErr[j] / h);
+                                        dt.Add(h);
+                                        tol.Add(tol[j - 1]);
+
+                                        FunctionPlots(j, t[j], yAS[j], yAB[j], h, fAB[j]);
+                                        Console.WriteLine("The Absolute Error is: " + AbsErr[j]);
+                                        Console.WriteLine("The Local Error is: " + LocErr[j]);
+                                        Console.WriteLine("The Global Error is: " + GlobErr[j]);
+                                        Console.WriteLine("The Delta Error is: " + delta);
+                                        Console.WriteLine("The Value for q: " + q);
+                                        Console.WriteLine();
+
+                                        j++;
+                                    }
+
+                                    j = j - 1;
+                                    NFLAG = 1;
+
+                                }
+                                else
+                                {
+                                    j = j - 1;                               
+                                }
+                            }
+                        }
+
+                        //Step will be decreased
+                        else
+                        {
+                            q = 2.15d * Math.Pow(((h * tol[j - 1]) / (Math.Abs(yABp - yAMc))), (1d / 3d));
+
+                            if (q < 0.1d)
+                            {
+                                h = 0.1d * h;
+                            }
+                            else
+                            {
+                                h = q * h;
+                            }
+
+                            if (h < hmin)
+                            {
+                                FLAG = 0;
+
+                                Console.WriteLine(j);
+                                h = hmin;
+                                j = j - 2;
+                                Console.WriteLine(j);
+
+                                //Get next values with Lagrange Inteprolation
+                                i = j + 2;
+                                while (j <= i)
+                                {
+                                    t[j] = (t[j - 1] + h);
+                                    yAS[j] = (AnalyticalSolutionODE(t[j]));
+
+                                    double tint2 = t[j] - (2d * h);
+                                    double tint3 = t[j] - (3d * h);
+
+                                    double fint2 = FunctionLagrangeInterpolation2(fAB[j - 1], fAB[j - 2], fAB[j - 3], t[j - 1], t[j - 2], t[j - 3], tint2);
+                                    double fint3 = FunctionLagrangeInterpolation2(fAB[j - 1], fAB[j - 2], fAB[j - 3], t[j - 1], t[j - 2], t[j - 3], tint3);
+
+                                    fAB[j - 2] = fint2;
+                                    fAB[j - 3] = fint3;
+
+                                    yAB[j] = (FunctionAdamBashforth3(yAB[j - 1], fAB[j - 1], fAB[j - 2], fAB[j - 3], h));
+                                    fAB[j] = (FunctionODE(t[j], yAB[j]));
+
+                                    yAM[j] = (FunctionAdamMulton2(yAM[j - 1], fAB[j], fAB[j - 1], fAB[j - 2], h));
+                                    yABp = yAB[j];
+                                    yAMc = yAM[j];
+
+                                    yAB[j] = yAM[j];
+                                    fAB[j] = FunctionODE(t[j], yAB[j]);
+
+                                    AbsErr[j] = (Math.Abs(yAS[j] - yAB[j]));
+                                    LocErr[j] = ((1d / (10d * h)) * Math.Abs(yABp - yAMc));
+                                    GlobErr[j] = (LocErr[j] / h);
+                                    dt[j] = (h);
+                                    tol[j] = (tol[j - 1]);
+
+                                    FunctionPlots(j, t[j], yAS[j], yAB[j], h, fAB[j]);
+                                    Console.WriteLine("The Absolute Error is: " + AbsErr[j]);
+                                    Console.WriteLine("The Local Error is: " + LocErr[j]);
+                                    Console.WriteLine("The Global Error is: " + GlobErr[j]);
+                                    Console.WriteLine("The Delta Error is: " + delta);
+                                    Console.WriteLine("The Value for q: " + q);
+                                    Console.WriteLine();
+
+                                    j++;
+                                }
+
+                                j = j - 1;
+                                NFLAG = 1;
+                                Console.WriteLine(j);
+
+                                Console.WriteLine("h min exceeded ");
+                                Console.WriteLine();
+                            }
+                            else
+                            {
+                                if (NFLAG == 1)
+                                {
+                                    j = j - 2;
+                                    Console.WriteLine("Previous results rejected");
+                                    Console.WriteLine("Suguested Value for h is : " + h);
+                                    Console.WriteLine();
+                                    //Console.ReadLine();
+                                }
+
+                                //Get next values with RK4
+                                i = j + 2;
+                                while (j < i)
+                                {
+                                    t[j] = (t[j - 1] + h);
+                                    yAS[j] = (AnalyticalSolutionODE(t[j]));
+
+                                    double tint2 = t[j] - (2d * h);
+                                    double tint3 = t[j] - (3d * h);
+
+                                    double fint2 = FunctionLagrangeInterpolation2(fAB[j - 1], fAB[j - 2], fAB[j - 3], t[j - 1], t[j - 2], t[j - 3], tint2);
+                                    double fint3 = FunctionLagrangeInterpolation2(fAB[j - 1], fAB[j - 2], fAB[j - 3], t[j - 1], t[j - 2], t[j - 3], tint3);
+
+                                    fAB[j - 2] = fint2;
+                                    fAB[j - 3] = fint3;
+
+                                    yAB[j] = (FunctionAdamBashforth3(yAB[j - 1], fAB[j - 1], fAB[j - 2], fAB[j - 3], h));
+                                    fAB[j] = (FunctionODE(t[j], yAB[j]));
+
+                                    yAM[j] = (FunctionAdamMulton2(yAM[j - 1], fAB[j], fAB[j - 1], fAB[j - 2], h));
+                                    yABp = yAB[j];
+                                    yAMc = yAM[j];
+
+                                    yAB[j] = yAM[j];
+                                    fAB[j] = FunctionODE(t[j], yAB[j]);
+
+                                    AbsErr[j] = (Math.Abs(yAS[j] - yAB[j]));
+                                    LocErr[j] = ((1d / (10d * h)) * Math.Abs(yABp - yAMc));
+                                    GlobErr[j] = (LocErr[j] / h);
+                                    dt[j] = (h);
+                                    tol[j] = (tol[j - 1]);
+
+                                    FunctionPlots(j, t[j], yAS[j], yAB[j], h, fAB[j]);
+                                    Console.WriteLine("The Absolute Error is: " + AbsErr[j]);
+                                    Console.WriteLine("The Local Error is: " + LocErr[j]);
+                                    Console.WriteLine("The Global Error is: " + GlobErr[j]);
+                                    Console.WriteLine("The Delta Error is: " + delta);
+                                    Console.WriteLine("The Value for q: " + q);
+                                    Console.WriteLine();
+
+                                    j++;
+                                }
+
+                                NFLAG = 1;
+                                Console.WriteLine(j);
+                                Console.WriteLine("Pause");
+                                Console.WriteLine();
+                            }
+                        }
+
+                        FunctionPlots(j, t[j], yAS[j], yAB[j], h, fAB[j]);
+                        Console.WriteLine("The Absolute Error is: " + AbsErr[j]);
+                        Console.WriteLine("The Local Error is: " + LocErr[j]);
+                        Console.WriteLine("The Global Error is: " + GlobErr[j]);
+                        Console.WriteLine("The Delta Error is: " + delta);
+                        Console.WriteLine("The Value for q: " + q);
+                        Console.WriteLine();
+
+                        j++;
+                    }
+                    break;
+                //Adam-Bashforth 4th Order
+                case 4:
+                    while (t[j - 1] <= tf)
+                    {
+                        t.Add(t[j - 1] + h);
+                        dt.Add(h);
+                        tol.Add(tol[j - 1]);
+
+                        //Calculate the Predictor using Adam-Bashforth
+                        yAS.Add(AnalyticalSolutionODE(t[j]));
+
+                        yAB.Add(FunctionAdamBashforth4(yAB[j - 1], fAB[j - 1], fAB[j - 2], fAB[j - 3], fAB[j - 4], h));
+                        fAB.Add(FunctionODE(t[j], yAB[j]));
+
+                        Console.WriteLine("Predictor Step");
+                        FunctionPlots(j, t[j], yAS[j], yAB[j], h, fAB[j]);
+                        Console.WriteLine();
+
+                        //Calculate the Corrector using Adam-Multon
+                        yAM.Add(FunctionAdamMulton3(yAM[j - 1], fAB[j], fAB[j - 1], fAB[j - 2], fAB[j - 3], h));
+                        yABp = yAB[j];
+                        yAMc = yAM[j];
+
+                        yAB[j] = yAM[j];
+                        fAB[j] = FunctionODE(t[j], yAB[j]);
+
+                        Console.WriteLine("Corrector Step");
+                        FunctionPlots(j, t[j], yAS[j], yAB[j], h, fAB[j]);
+                        Console.WriteLine();
+
+                        //Absolute Error
+                        AbsErr.Add(Math.Abs(yAS[j] - yAB[j]));
+
+                        //Local Truncation Error
+                        LocErr.Add((19d / (270d * h)) * Math.Abs(yABp - yAMc));
+
+                        //Global Error 
+                        GlobErr.Add(LocErr[j] / h);
+
+                        double delta = (19d / (270d * h)) * Math.Abs(yABp - yAMc);
+                        double q = Math.Pow((tol[j - 1] / (2d * delta)), (1d / 4d));
+
+                        FunctionPlots(j, t[j], yAS[j], yAB[j], h, fAB[j]);
+                        Console.WriteLine("The Absolute Error is: " + AbsErr[j]);
+                        Console.WriteLine("The Local Error is: " + LocErr[j]);
+                        Console.WriteLine("The Global Error is: " + GlobErr[j]);
+                        Console.WriteLine("The Delta Error is: " + delta);
+                        Console.WriteLine("The Value for q: " + q);
+                        Console.WriteLine();
+
+                        //Step Size Control
+
+                        //Step will be increased
+                        if (delta <= tol[j - 1])
+                        {
+                            yAB[j] = yAM[j];
+                            fAB[j] = FunctionODE(t[j], yAB[j]);
+                            t[j] = t[j];
+
+                            Console.WriteLine("Result Accepted");
+                            Console.WriteLine();
+
+                            if (NFLAG == 1)
+                            {
+                                Console.WriteLine("Previous Results also accepted");
+                                Console.WriteLine();
+                            }
+                            else
+                            {
+                                Console.WriteLine("Previous Results already accepted");
+                                Console.WriteLine();
+                            }
+
+                            if (LAST == 1)
+                            {
+                                FLAG = 0;
+                            }
+                            else
+                            {
+                                j = j + 1;
+                                NFLAG = 0;
+
+                                if (delta <= 0.1d * tol[j - 1] || t[j - 1] + h < tf)
+                                {
+                                    q = Math.Pow((tol[j - 1] / (2d * delta)), (1d / 4d));
+
+                                    if (q > 4)
+                                    {
+                                        h = 4d * h;
+                                    }
+                                    else
+                                    {
+                                        h = q * h;
+                                    }
+
+                                    if (h > hmax)
+                                    {
+                                        h = hmax;
+                                    }
+
+                                    if (t[j - 1] + 4d * h > tf)
+                                    {
+                                        h = (tf - t[j - 1]) / 4d;
+                                        LAST = 1;
+                                    }
+
+                                    //Get next values with Lagrange Interpolation 
+                                    i = j + 2;
+                                    while (j <= i)
+                                    {
+                                        t.Add(t[j - 1] + h);
+                                        yAS.Add(AnalyticalSolutionODE(t[j]));
+
+                                        double tint2 = t[j] - (2d * h);
+                                        double tint3 = t[j] - (3d * h);
+                                        double tint4 = t[j] - (4d * h);
+
+                                        double fint2 = FunctionLagrangeInterpolation3(fAB[j - 1], fAB[j - 2], fAB[j - 3], fAB[j - 4], t[j - 1], t[j - 2], t[j - 3], t[j - 4], tint2);
+                                        double fint3 = FunctionLagrangeInterpolation3(fAB[j - 1], fAB[j - 2], fAB[j - 3], fAB[j - 4], t[j - 1], t[j - 2], t[j - 3], t[j - 4], tint3);
+                                        double fint4 = FunctionLagrangeInterpolation3(fAB[j - 1], fAB[j - 2], fAB[j - 3], fAB[j - 4], t[j - 1], t[j - 2], t[j - 3], t[j - 4], tint4);
+
+                                        fAB[j - 2] = fint2;
+                                        fAB[j - 3] = fint3;
+                                        fAB[j - 4] = fint4;
+
+                                        yAB.Add(FunctionAdamBashforth4(yAB[j - 1], fAB[j - 1], fAB[j - 2], fAB[j - 3], fAB[j - 4], h));
+                                        fAB.Add(FunctionODE(t[j], yAB[j]));
+
+                                        yAM.Add(FunctionAdamMulton3(yAM[j - 1], fAB[j], fAB[j - 1], fAB[j - 2], fAB[j - 3], h));
+                                        yABp = yAB[j];
+                                        yAMc = yAM[j];
+
+                                        yAB[j] = yAM[j];
+                                        fAB[j] = FunctionODE(t[j], yAB[j]);
+
+                                        AbsErr.Add(Math.Abs(yAS[j] - yAB[j]));
+                                        LocErr.Add((19d / (270d * h)) * Math.Abs(yABp - yAMc));
+                                        GlobErr.Add(LocErr[j] / h);
+                                        dt.Add(h);
+                                        tol.Add(tol[j - 1]);
+
+                                        FunctionPlots(j, t[j], yAS[j], yAB[j], h, fAB[j]);
+                                        Console.WriteLine("The Absolute Error is: " + AbsErr[j]);
+                                        Console.WriteLine("The Local Error is: " + LocErr[j]);
+                                        Console.WriteLine("The Global Error is: " + GlobErr[j]);
+                                        Console.WriteLine("The Delta Error is: " + delta);
+                                        Console.WriteLine("The Value for q: " + q);
+                                        Console.WriteLine();
+
+                                        j++;
+                                    }
+
+                                    j = j - 1;
+                                    NFLAG = 1;
+                                }
+                                else
+                                {
+                                    j = j - 1;                             
+                                }
+                            }
+                        }
+
+                        //Step will be decreased
+                        else
+                        {
+                            q = Math.Pow((tol[j - 1] / (2d * delta)), (1d / 4d));
+
+                            if (q < 0.1d)
+                            {
+                                h = 0.1d * h;
+                            }
+                            else
+                            {
+                                h = q * h;
+                            }
+
+                            if (h < hmin)
+                            {
+                                FLAG = 0;
+
+                                Console.WriteLine(j);
+                                h = hmin;
+                                j = j - 3;
+                                Console.WriteLine(j);
+
+                                //Get next values with Lagrange Interpolation
+                                i = j + 3;
+                                while (j <= i)
+                                {
+                                    t[j] = (t[j - 1] + h);
+                                    yAS[j] = (AnalyticalSolutionODE(t[j]));
+
+                                    double tint2 = t[j] - (2d * h);
+                                    double tint3 = t[j] - (3d * h);
+                                    double tint4 = t[j] - (4d * h);
+
+                                    double fint2 = FunctionLagrangeInterpolation3(fAB[j - 1], fAB[j - 2], fAB[j - 3], fAB[j - 4], t[j - 1], t[j - 2], t[j - 3], t[j - 4], tint2);
+                                    double fint3 = FunctionLagrangeInterpolation3(fAB[j - 1], fAB[j - 2], fAB[j - 3], fAB[j - 4], t[j - 1], t[j - 2], t[j - 3], t[j - 4], tint3);
+                                    double fint4 = FunctionLagrangeInterpolation3(fAB[j - 1], fAB[j - 2], fAB[j - 3], fAB[j - 4], t[j - 1], t[j - 2], t[j - 3], t[j - 4], tint4);
+
+                                    fAB[j - 2] = fint2;
+                                    fAB[j - 3] = fint3;
+                                    fAB[j - 4] = fint4;
+
+                                    yAB[j] = (FunctionAdamBashforth4(yAB[j - 1], fAB[j - 1], fAB[j - 2], fAB[j - 3], fAB[j - 4], h));
+                                    fAB[j] = (FunctionODE(t[j], yAB[j]));
+
+                                    yAM[j] = (FunctionAdamMulton3(yAM[j - 1], fAB[j], fAB[j - 1], fAB[j - 2], fAB[j - 3], h));
+                                    yABp = yAB[j];
+                                    yAMc = yAM[j];
+
+                                    yAB[j] = yAM[j];
+                                    fAB[j] = FunctionODE(t[j], yAB[j]);
+
+                                    AbsErr[j] = (Math.Abs(yAS[j] - yAB[j]));
+                                    LocErr[j] = ((19d / (270d * h)) * Math.Abs(yABp - yAMc));
+                                    GlobErr[j] = (LocErr[j] / h);
+                                    dt[j] = (h);
+                                    tol[j] = (tol[j - 1]);
+
+                                    FunctionPlots(j, t[j], yAS[j], yAB[j], h, fAB[j]);
+                                    Console.WriteLine("The Absolute Error is: " + AbsErr[j]);
+                                    Console.WriteLine("The Local Error is: " + LocErr[j]);
+                                    Console.WriteLine("The Global Error is: " + GlobErr[j]);
+                                    Console.WriteLine("The Delta Error is: " + delta);
+                                    Console.WriteLine("The Value for q: " + q);
+                                    Console.WriteLine();
+
+                                    j++;
+                                }
+
+                                j = j - 1;
+                                NFLAG = 1;
+                                Console.WriteLine(j);
+                                Console.WriteLine("Pause");
+                                Console.WriteLine();
+
+                                Console.WriteLine("h min exceeded ");
+                                Console.WriteLine();
+                            }
+                            else
+                            {
+                                if (NFLAG == 1)
+                                {
+                                    j = j - 3;
+                                    Console.WriteLine("Previous results rejected");
+                                    Console.WriteLine("Suguested Value for h is : " + h);
+                                    Console.WriteLine();
+                                    //Console.ReadLine();
+                                }
+
+                                //Get next values with RK4
+                                i = j + 3;
+                                while (j < i)
+                                {
+                                    t[j] = (t[j - 1] + h);
+                                    yAS[j] = (AnalyticalSolutionODE(t[j]));
+
+                                    double tint2 = t[j] - (2d * h);
+                                    double tint3 = t[j] - (3d * h);
+                                    double tint4 = t[j] - (4d * h);
+
+                                    double fint2 = FunctionLagrangeInterpolation3(fAB[j - 1], fAB[j - 2], fAB[j - 3], fAB[j - 4], t[j - 1], t[j - 2], t[j - 3], t[j - 4], tint2);
+                                    double fint3 = FunctionLagrangeInterpolation3(fAB[j - 1], fAB[j - 2], fAB[j - 3], fAB[j - 4], t[j - 1], t[j - 2], t[j - 3], t[j - 4], tint3);
+                                    double fint4 = FunctionLagrangeInterpolation3(fAB[j - 1], fAB[j - 2], fAB[j - 3], fAB[j - 4], t[j - 1], t[j - 2], t[j - 3], t[j - 4], tint4);
+
+                                    fAB[j - 2] = fint2;
+                                    fAB[j - 3] = fint3;
+                                    fAB[j - 4] = fint4;
+
+                                    yAB[j] = (FunctionAdamBashforth4(yAB[j - 1], fAB[j - 1], fAB[j - 2], fAB[j - 3], fAB[j - 4], h));
+                                    fAB[j] = (FunctionODE(t[j], yAB[j]));
+
+                                    yAM[j] = (FunctionAdamMulton3(yAM[j - 1], fAB[j], fAB[j - 1], fAB[j - 2], fAB[j - 3], h));
+                                    yABp = yAB[j];
+                                    yAMc = yAM[j];
+
+                                    yAB[j] = yAM[j];
+                                    fAB[j] = FunctionODE(t[j], yAB[j]);
+
+                                    AbsErr[j] = (Math.Abs(yAS[j] - yAB[j]));
+                                    LocErr[j] = ((19d / (270d * h)) * Math.Abs(yABp - yAMc));
+                                    GlobErr[j] = (LocErr[j] / h);
+                                    dt[j] = (h);
+                                    tol[j] = (tol[j - 1]);
+
+                                    FunctionPlots(j, t[j], yAS[j], yAB[j], h, fAB[j]);
+                                    Console.WriteLine("The Absolute Error is: " + AbsErr[j]);
+                                    Console.WriteLine("The Local Error is: " + LocErr[j]);
+                                    Console.WriteLine("The Global Error is: " + GlobErr[j]);
+                                    Console.WriteLine("The Delta Error is: " + delta);
+                                    Console.WriteLine("The Value for q: " + q);
+                                    Console.WriteLine();
+
+                                    j++;
+                                }
+
+                                NFLAG = 1;
+                                Console.WriteLine(j);
+                                Console.WriteLine("Pause");
+                                Console.WriteLine();
+                            }
+                        }
+
+                        FunctionPlots(j, t[j], yAS[j], yAB[j], h, fAB[j]);
+                        Console.WriteLine("The Absolute Error is: " + AbsErr[j]);
+                        Console.WriteLine("The Local Error is: " + LocErr[j]);
+                        Console.WriteLine("The Global Error is: " + GlobErr[j]);
+                        Console.WriteLine("The Delta Error is: " + delta);
+                        Console.WriteLine("The Value for q: " + q);
+                        Console.WriteLine();
+
+                        j++;
+                    }
+                    break;
+            }
+
+
+            stopWatch.Stop();
+            // Get the elapsed time as a TimeSpan value.
+            TimeSpan ts = stopWatch.Elapsed;
+
+            // Format and display the TimeSpan value.
+            string elapsedTime = String.Format("{0:00}:{1:00}:{2:00}.{3:00}",
+                ts.Hours, ts.Minutes, ts.Seconds,
+                ts.Milliseconds / 10);
+            Console.WriteLine("RunTime " + elapsedTime);
+
+            // Create a StreamWriter instance
+            StreamWriter writer = new StreamWriter("yABLIC4.txt");
+            // Ensure the writer will be closed when no longer used
+            using (writer)
+            {
+                // Loop through the numbers from 1 to 20 and write them
+                for (i = 0; i < yAB.Count; i++)
+                {
+                    writer.WriteLine(yAB[i]);
+                }
+            }
+
+            StreamWriter writer2 = new StreamWriter("yASLIC4.txt");
+            // Ensure the writer will be closed when no longer used
+            using (writer2)
+            {
+                // Loop through the numbers from 1 to 20 and write them
+                for (i = 0; i < yAS.Count; i++)
+                {
+                    writer2.WriteLine(yAS[i]);
+                }
+            }
+
+            StreamWriter writer3 = new StreamWriter("tLIC4.txt");
+            // Ensure the writer will be closed when no longer used
+            using (writer3)
+            {
+                // Loop through the numbers from 1 to 20 and write them
+                for (i = 0; i < t.Count; i++)
+                {
+                    writer3.WriteLine(t[i]);
+                }
+            }
+
+            StreamWriter writer4 = new StreamWriter("AbsErrLIC4.txt");
+            // Ensure the writer will be closed when no longer used
+            using (writer4)
+            {
+                // Loop through the numbers from 1 to 20 and write them
+                for (i = 0; i < yAB.Count; i++)
+                {
+                    writer4.WriteLine(AbsErr[i]);
+                }
+            }
+
+            StreamWriter writer5 = new StreamWriter("LocErrLIC4.txt");
+            // Ensure the writer will be closed when no longer used
+            using (writer5)
+            {
+                // Loop through the numbers from 1 to 20 and write them
+                for (i = 0; i < yAB.Count; i++)
+                {
+                    writer5.WriteLine(LocErr[i]);
+                }
+            }
+
+            StreamWriter writer6 = new StreamWriter("GlobErrLIC4.txt");
+            // Ensure the writer will be closed when no longer used
+            using (writer6)
+            {
+                // Loop through the numbers from 1 to 20 and write them
+                for (i = 0; i < yAB.Count; i++)
+                {
+                    writer6.WriteLine(GlobErr[i]);
+                }
+            }
+
+            StreamWriter writer7 = new StreamWriter("dtLIC4.txt");
+            // Ensure the writer will be closed when no longer used
+            using (writer7)
+            {
+                // Loop through the numbers from 1 to 20 and write them
+                for (i = 0; i < dt.Count; i++)
+                {
+                    writer7.WriteLine(dt[i]);
+                }
+            }
+
+            StreamWriter writer8 = new StreamWriter("tolLIC4.txt");
+            // Ensure the writer will be closed when no longer used
+            using (writer8)
+            {
+                // Loop through the numbers from 1 to 20 and write them
+                for (i = 0; i < tol.Count; i++)
+                {
+                    writer8.WriteLine(tol[i]);
+                }
+            }
+
+            Console.ReadLine();
+        }
+    }
+}
